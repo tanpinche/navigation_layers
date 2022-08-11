@@ -37,11 +37,11 @@ add_library(${PROJECT_NAME} src/range_sensor_layer.cpp)
 add_dependencies(${PROJECT_NAME} ${range_sensor_layer_EXPORTED_TARGETS} ${catkin_EXPORTED_TARGETS})
 target_link_libraries(${PROJECT_NAME} ${catkin_LIBRARIES})
 
-if(CATKIN_ENABLE_TESTING)
-  find_package(catkin REQUIRED COMPONENTS roslint)
-  roslint_cpp()
-  roslint_add_test()
-endif()
+# if(CATKIN_ENABLE_TESTING)
+#   find_package(catkin REQUIRED COMPONENTS roslint)
+#   roslint_cpp()
+#   roslint_add_test()
+# endif()
 
 install(TARGETS ${PROJECT_NAME}
         LIBRARY DESTINATION ${CATKIN_PACKAGE_LIB_DESTINATION}

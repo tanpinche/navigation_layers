@@ -241,15 +241,22 @@ void RangeSensorLayer::processVariableRangeMsg(sensor_msgs::Range& range_message
 
   bool clear_sensor_cone = false;
 
-  if (range_message.range == range_message.max_range && clear_on_max_reading_)
-    clear_sensor_cone = true;
+  if (range_message.range == range_message.max_range){
+    if(clear_on_max_reading_){
+      clear_sensor_cone = true;
+      }
+      else {
+        return;
+      }
+  }
+    
 
   updateCostmap(range_message, clear_sensor_cone);
 }
 
 void RangeSensorLayer::updateCostmap(sensor_msgs::Range& range_message, bool clear_sensor_cone)
 {
-  max_angle_ = range_message.field_of_view / 2;
+  max_angle_ = range_message.field_of_view / 2.0;
 
   geometry_msgs::PointStamped in, out;
   in.header.stamp = range_message.header.stamp;
@@ -300,8 +307,8 @@ void RangeSensorLayer::updateCostmap(sensor_msgs::Range& range_message, bool cle
   double mx, my;
 
   // Update left side of sonar cone
-  mx = ox + cos(theta - max_angle_) * d * 1.2;
-  my = oy + sin(theta - max_angle_) * d * 1.2;
+  mx = ox + cos(theta - max_angle_*(1.0 + inflate_cone_)) * d * 1.2;
+  my = oy + sin(theta - max_angle_*(1.0 + inflate_cone_)) * d * 1.2;
   worldToMapNoBounds(mx, my, Ax, Ay);
   bx0 = std::min(bx0, Ax);
   bx1 = std::max(bx1, Ax);
@@ -310,8 +317,8 @@ void RangeSensorLayer::updateCostmap(sensor_msgs::Range& range_message, bool cle
   touch(mx, my, &min_x_, &min_y_, &max_x_, &max_y_);
 
   // Update right side of sonar cone
-  mx = ox + cos(theta + max_angle_) * d * 1.2;
-  my = oy + sin(theta + max_angle_) * d * 1.2;
+  mx = ox + cos(theta + max_angle_*(1.0 + inflate_cone_)) * d * 1.2;
+  my = oy + sin(theta + max_angle_*(1.0 + inflate_cone_)) * d * 1.2;
 
   worldToMapNoBounds(mx, my, Bx, By);
   bx0 = std::min(bx0, Bx);
@@ -338,6 +345,67 @@ void RangeSensorLayer::updateCostmap(sensor_msgs::Range& range_message, bool cle
       // details
       if (inflate_cone_ < 1.0)
       {
+
+        // //triangle area
+        // int area = Ox*(Ay-By) +Ax*(By-Oy)  + Bx*(Oy-Ay);
+
+        // // area of segments
+        // int v = x*(Oy-Ay) + Ox*(Ay - y) + Ax*(y - Oy);
+        // int w = x*(Oy-By) + Ox*(By - y) + Bx*(y - Oy);
+        // int u = x*(Ay-By) + Ax*(By - y) + Bx*(y - Ay);
+
+        // int total = v + w + u;
+
+
+        // //2d barycentric calculations
+        // //step 1 find 2 vectors that make sensor triangle
+
+        // //find the vector that makes left side of cone
+        // int vaox = Ax - Ox;
+        // int vaoy = Ay - Oy;
+        // //vector that makes right side of cone
+        // int vbox = Bx - Ox;
+        // int vboy = By - Oy;
+
+
+
+        // //step 2 calculate area of sensor triangle using cross product
+        // //note, calculated area is actually parelellogram and not triangle, but math still works,
+        // // and keeps values to integers, instead of double
+        // int area = abs(vaox*vboy - vbox*vaoy);
+
+
+        // //step 3 find 3 vectors based on point p
+        // // vector op
+        // int vpox = x - Ox;
+        // int vpoy = y - Ox;
+        // //vector pa
+        // int vpax = Ax - x;
+        // int vpay = Ay - y;
+        // //vector pb
+        // int vpbx = Bx - x;
+        // int vpby = By - y;
+
+        // //step 4 check if u + v + w = area of triangle, i.e. point is in triangle
+
+        // int v = abs(vpox*vpay - vpax*vpoy);
+        // int w = abs(vpox*vpby - vpox*vpby);
+        // int u = abs(vpax*vpby - vpbx*vpay);
+
+        // int total = v+w+u;
+
+        // if(area==total){
+        //   update_xy_cell = true;
+        // }
+        // else{
+        //   // if(total<area){
+        //   //   printf("\n barycentric areas are smaller!");
+        //   // }
+        //   update_xy_cell = false;
+        // }
+       
+        
+
         // Determine barycentric coordinates
         int w0 = orient2d(Ax, Ay, Bx, By, x, y);
         int w1 = orient2d(Bx, By, Ox, Oy, x, y);
@@ -394,12 +462,16 @@ void RangeSensorLayer::update_cell(double ox, double oy, double ot, double r, do
     double prob_occ = sensor * prior;
     double prob_not = (1 - sensor) * (1 - prior);
     double new_prob = prob_occ / (prob_occ + prob_not);
+    // if(new_prob>0.8){
+    //   printf("\n prob:%f sensor:%f, prob_occ:%f new_prob:%f range:%f",prior, sensor, prob_occ, new_prob,r);
+    // }
 
     ROS_DEBUG("%f %f | %f %f = %f", dx, dy, theta, phi, sensor);
     ROS_DEBUG("%f | %f %f | %f", prior, prob_occ, prob_not, new_prob);
     unsigned char c = to_cost(new_prob);
 
     setCost(x, y, c);
+    was_checked_by_sensor[getIndex(x,y)] = true;
     if(use_decay_)
     {
       std::pair<unsigned int, unsigned int> coordinate_pair(x, y);
@@ -464,9 +536,12 @@ void RangeSensorLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i
   if (!enabled_)
     return;
 
+  //printf("\n update cost");
+
   unsigned char* master_array = master_grid.getCharMap();
   unsigned int span = master_grid.getSizeInCellsX();
   unsigned char clear = to_cost(clear_threshold_), mark = to_cost(mark_threshold_);
+  //printf("\n clear:%u mark:%u", clear, mark);
 
   for (int j = min_j; j < max_j; j++)
   {
@@ -480,20 +555,53 @@ void RangeSensorLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i
         it++;
         continue;
       }
-      else if (prob > mark)
+      else if (prob > mark){
         current = costmap_2d::LETHAL_OBSTACLE;
-      else if (prob < clear)
+        // is_lethal[it] = true;
+        // //printf("\n cell:%u is lethal with prob:%u", it, prob);
+      
+      }
+      else if (prob < clear){
         current = costmap_2d::FREE_SPACE;
+        // if(is_lethal[it]){
+        //   is_lethal[it] = false;
+        //   //printf("\n cell %u was lethal but now empty with prob:%u",it, prob);
+
+        // }
+        // printf("\n cell %d is cleared", it);
+
+      }
+        
       else
       {
         it++;
         continue;
       }
-
+     
+      
       unsigned char old_cost = master_array[it];
 
-      if (old_cost == NO_INFORMATION || old_cost < current)
+      if (old_cost == NO_INFORMATION || old_cost < current){
+      //the combination method of this layer and other layers is maximum, where only the maximum value gets used. 
+      //this means that if this layer detects no obstacle but another layer detects an obstacle, 
+      //the master costmap has a value of obstacle
         master_array[it] = current;
+        if(was_checked_by_sensor.count(it)>0)
+          was_checked_by_sensor[it] =false;
+
+      }
+      else if(old_cost > current && was_checked_by_sensor.count(it)>0){
+        //if the cell in master costmap layer has an obstacle, 
+        //probably detected by anothe sensor sometime in the past, 
+        //and cell is detected by ultrasonic sensor as cleared by a recent reading, 
+        //clear cell to match recent reading.
+        if(was_checked_by_sensor[it]){
+         
+          master_array[it] = current;
+         
+          was_checked_by_sensor.erase(it);
+        }
+      }
       it++;
     }
   }

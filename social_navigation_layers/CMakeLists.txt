@@ -37,11 +37,11 @@ target_link_libraries(
     social_layers ${catkin_LIBRARIES}
 )
 
-if(CATKIN_ENABLE_TESTING)
-  find_package(catkin REQUIRED COMPONENTS roslint)
-  roslint_cpp()
-  roslint_add_test()
-endif()
+# if(CATKIN_ENABLE_TESTING)
+#   find_package(catkin REQUIRED COMPONENTS roslint)
+#   roslint_cpp()
+#   roslint_add_test()
+# endif()
 
 install(FILES costmap_plugins.xml
         DESTINATION ${CATKIN_PACKAGE_SHARE_DESTINATION}
