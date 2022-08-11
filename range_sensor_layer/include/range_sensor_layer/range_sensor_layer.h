@@ -27,6 +27,8 @@ public:
     ALL
   };
 
+
+
   RangeSensorLayer();
 
   virtual void onInitialize();
@@ -38,6 +40,8 @@ public:
   virtual void activate();
 
 private:
+  //my own addition to allow ultrasonic to clear the area it detects as clear.
+  std::map<unsigned int, bool> was_checked_by_sensor; 
   void reconfigureCB(range_sensor_layer::RangeSensorLayerConfig &config, uint32_t level);
 
   void bufferIncomingRangeMsg(const sensor_msgs::RangeConstPtr& range_message);
@@ -70,6 +74,7 @@ private:
   boost::mutex range_message_mutex_;
   std::list<sensor_msgs::Range> range_msgs_buffer_;
   std::map<std::pair<unsigned int, unsigned int>, double> marked_point_history_;
+  std::map<unsigned int, bool> is_lethal;
 
   double max_angle_, phi_v_;
   double inflate_cone_;
