@@ -478,7 +478,7 @@ void RangeSensorLayer::update_cell(double ox, double oy, double ot, double r, do
     unsigned char c = to_cost(new_prob);
 
     setCost(x, y, c);
-    was_checked_by_sensor[getIndex(x,y)] = true;
+    // was_checked_by_sensor[getIndex(x,y)] = true;
     if(use_decay_)
     {
       std::pair<unsigned int, unsigned int> coordinate_pair(x, y);
@@ -593,22 +593,22 @@ void RangeSensorLayer::updateCosts(costmap_2d::Costmap2D& master_grid, int min_i
       //this means that if this layer detects no obstacle but another layer detects an obstacle, 
       //the master costmap has a value of obstacle
         master_array[it] = current;
-        if(was_checked_by_sensor.count(it)>0)
-          was_checked_by_sensor[it] =false;
+        // if(was_checked_by_sensor.count(it)>0)
+        //   was_checked_by_sensor[it] =false;
 
       }
-      else if(old_cost > current && was_checked_by_sensor.count(it)>0){
-        //if the cell in master costmap layer has an obstacle, 
-        //probably detected by anothe sensor sometime in the past, 
-        //and cell is detected by ultrasonic sensor as cleared by a recent reading, 
-        //clear cell to match recent reading.
-        if(was_checked_by_sensor[it]){
+      // else if(old_cost > current && was_checked_by_sensor.count(it)>0){
+      //   //if the cell in master costmap layer has an obstacle, 
+      //   //probably detected by anothe sensor sometime in the past, 
+      //   //and cell is detected by ultrasonic sensor as cleared by a recent reading, 
+      //   //clear cell to match recent reading.
+      //   if(was_checked_by_sensor[it]){
          
-          master_array[it] = current;
+      //     master_array[it] = current;
          
-          was_checked_by_sensor.erase(it);
-        }
-      }
+      //     was_checked_by_sensor.erase(it);
+      //   }
+      // }
       it++;
     }
   }
