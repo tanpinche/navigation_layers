@@ -260,7 +260,14 @@ void RangeSensorLayer::updateCostmap(sensor_msgs::Range& range_message, bool cle
 
   geometry_msgs::PointStamped in, out;
   in.header.stamp = range_message.header.stamp;
-  in.header.frame_id = range_message.header.frame_id;
+  if(range_message.header.frame_id[0] == '/'){
+    in.header.frame_id = std::string(range_message.header.frame_id.begin() + 1, range_message.header.frame_id.end());
+  }
+  else {
+     in.header.frame_id = range_message.header.frame_id;
+  }
+  
+  
 
   if (!tf_->canTransform(global_frame_, in.header.frame_id, in.header.stamp, ros::Duration(transform_tolerance_)))
   {
